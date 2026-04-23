@@ -20,7 +20,14 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 // Static files (must come before routes)
 app.use(express.static(path.join(__dirname, '../public'), {
   maxAge: '1h',
-  etag: false
+  etag: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
 }));
 
 // API Routes
