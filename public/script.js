@@ -25,6 +25,21 @@ function logout() {
   window.location.href = '/';
 }
 
+// ============ Copy to Clipboard Function ============
+function copyToClipboard(text, buttonElement) {
+  navigator.clipboard.writeText(text).then(() => {
+    const originalText = buttonElement.textContent;
+    buttonElement.textContent = '✓ Copied!';
+    buttonElement.style.backgroundColor = '#4CAF50';
+    setTimeout(() => {
+      buttonElement.textContent = originalText;
+      buttonElement.style.backgroundColor = '';
+    }, 2000);
+  }).catch(() => {
+    alert('Failed to copy. Please copy manually: ' + text);
+  });
+}
+
 // ============ Patient Registration ============
 const patientRegisterForm = document.getElementById('patientRegisterForm');
 if (patientRegisterForm) {
@@ -52,11 +67,29 @@ if (patientRegisterForm) {
       const data = await response.json();
 
       if (data.success) {
-        showMessage(container, `Registration successful! Your UHID: ${data.uhid}`, 'success');
+        // Create success message with UHID copy feature
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message success';
+        msgDiv.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+            <div>
+              <strong>✓ Registration successful!</strong>
+              <p style="margin-top: 8px; font-size: 14px;">Your UHID: <strong style="color: #0066cc;">${data.uhid}</strong></p>
+            </div>
+            <button type="button" class="btn-copy-uhid" onclick="copyToClipboard('${data.uhid}', this)">📋 Copy UHID</button>
+          </div>
+        `;
+        container.insertBefore(msgDiv, container.firstChild);
+        
+        // Remove message after 5 seconds and redirect
+        setTimeout(() => {
+          msgDiv.remove();
+        }, 5000);
+        
         patientRegisterForm.reset();
         setTimeout(() => {
           window.location.href = '/patient-login.html';
-        }, 2000);
+        }, 3000);
       } else {
         showMessage(container, data.message, 'error');
       }
