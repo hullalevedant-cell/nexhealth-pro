@@ -2,14 +2,29 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const dbPath = path.join(__dirname, '../nexhealth.db');
-const db = new sqlite3.Database(dbPath, (err) => {
+
+// Configure SQLite for better concurrency and performance
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) {
     console.error('Database connection error:', err.message);
+    process.exit(1);
   } else {
     console.log('Connected to SQLite database');
+    configureDatabase();
     initializeDatabase();
   }
 });
+
+// Configure database for better concurrency and performance
+function configureDatabase() {
+  db.configure('busyTimeout', 5000);
+  db.run('PRAGMA journal_mode = WAL;', (err) => {
+    if (err) console.error('WAL mode error:', err.message);
+  });
+  db.run('PRAGMA synchronous = NORMAL;');
+  db.run('PRAGMA cache_size = -64000;');
+  db.run('PRAGMA foreign_keys = ON;');
+}
 
 function initializeDatabase() {
   db.serialize(() => {
