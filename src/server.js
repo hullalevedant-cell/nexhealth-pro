@@ -45,8 +45,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`NexHealth Pro server running on http://localhost:${PORT}`);
-  console.log('Doctor credentials: doctor1/pass123, doctor2/pass123, doctor3/pass123');
+  console.log(`NexHealth Pro server running on port ${PORT}`);
 });
 
 // Graceful shutdown

@@ -67,29 +67,57 @@ if (patientRegisterForm) {
       const data = await response.json();
 
       if (data.success) {
-        // Create success message with UHID copy feature
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'message success';
-        msgDiv.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px;">
-            <div>
-              <strong>✓ Registration successful!</strong>
-              <p style="margin-top: 8px; font-size: 14px;">Your UHID: <strong style="color: #0066cc;">${data.uhid}</strong></p>
-            </div>
-            <button type="button" class="btn-copy-uhid" onclick="copyToClipboard('${data.uhid}', this)">📋 Copy UHID</button>
-          </div>
-        `;
-        container.insertBefore(msgDiv, container.firstChild);
-        
-        // Remove message after 5 seconds and redirect
-        setTimeout(() => {
-          msgDiv.remove();
-        }, 5000);
-        
+        const successContainer = document.getElementById('registrationSuccess');
+        if (successContainer) {
+          successContainer.innerHTML = '';
+          const successBox = document.createElement('div');
+          successBox.className = 'message success';
+
+          const contentRow = document.createElement('div');
+          contentRow.style.display = 'flex';
+          contentRow.style.justifyContent = 'space-between';
+          contentRow.style.alignItems = 'center';
+          contentRow.style.gap = '15px';
+          contentRow.style.flexWrap = 'wrap';
+
+          const textBlock = document.createElement('div');
+          const title = document.createElement('strong');
+          title.textContent = '✓ Registration successful!';
+          textBlock.appendChild(title);
+
+          const uhidText = document.createElement('p');
+          uhidText.style.marginTop = '8px';
+          uhidText.style.fontSize = '14px';
+          uhidText.innerHTML = `Your UHID: <strong style="color: #0066cc;">${data.uhid}</strong>`;
+          textBlock.appendChild(uhidText);
+
+          const buttonBlock = document.createElement('div');
+          buttonBlock.style.display = 'flex';
+          buttonBlock.style.gap = '10px';
+          buttonBlock.style.flexWrap = 'wrap';
+
+          const copyButton = document.createElement('button');
+          copyButton.type = 'button';
+          copyButton.className = 'btn-copy-uhid';
+          copyButton.textContent = '📋 Copy UHID';
+          copyButton.addEventListener('click', () => copyToClipboard(data.uhid, copyButton));
+          buttonBlock.appendChild(copyButton);
+
+          const loginButton = document.createElement('button');
+          loginButton.type = 'button';
+          loginButton.className = 'btn btn-secondary btn-small';
+          loginButton.textContent = 'Go to Login';
+          loginButton.addEventListener('click', () => {
+            window.location.href = '/patient-login.html';
+          });
+          buttonBlock.appendChild(loginButton);
+
+          contentRow.appendChild(textBlock);
+          contentRow.appendChild(buttonBlock);
+          successBox.appendChild(contentRow);
+          successContainer.appendChild(successBox);
+        }
         patientRegisterForm.reset();
-        setTimeout(() => {
-          window.location.href = '/patient-login.html';
-        }, 3000);
       } else {
         showMessage(container, data.message, 'error');
       }
