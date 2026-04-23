@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doctor Dashboard - NexHealth Pro</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="container">
+      <div class="header-content">
+        <h1>🏥 NexHealth Pro - Doctor Dashboard</h1>
+        <div>
+          <span style="margin-right: 20px;">👨‍⚕️ Doctor ID: <strong id="doctorIdDisplay">-</strong></span>
+          <button id="doctorLogoutBtn" class="logout-btn">Logout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="doctorDashboard" class="container">
+    <div class="dashboard-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <ul class="sidebar-menu">
+          <li><a href="#" class="active">📅 Appointments</a></li>
+          <li><a href="#" class="active">🔍 Search Patient</a></li>
+          <li><a href="#" class="active">✏️ Update Records</a></li>
+        </ul>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="tabs">
+          <button class="tab-button active" data-tab="appointments-tab">Your Appointments</button>
+          <button class="tab-button" data-tab="search-tab">Search Patient</button>
+          <button class="tab-button" data-tab="manage-tab">Manage Patient</button>
+        </div>
+
+        <!-- Appointments Tab -->
+        <div id="appointments-tab" class="tab-content active">
+          <h2 style="color: var(--primary-blue); margin-bottom: 20px;">📅 Scheduled Appointments</h2>
+
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Patient Name</th>
+                  <th>UHID</th>
+                  <th>Date & Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="doctorAppointmentsTable">
+                <tr>
+                  <td colspan="4" style="text-align: center; color: #999;">Loading appointments...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Search Patient Tab -->
+        <div id="search-tab" class="tab-content">
+          <h2 style="color: var(--primary-blue); margin-bottom: 20px;">🔍 Search Patient</h2>
+
+          <div class="card">
+            <form id="searchPatientForm" style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+              <input type="text" id="searchUHID" placeholder="Enter Patient UHID (e.g., UHID1001)" required style="flex: 1; padding: 12px 15px; border: 2px solid #0066cc; border-radius: 4px; font-size: 14px; min-width: 200px;">
+              <button type="submit" style="padding: 12px 18px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Request OTP</button>
+            </form>
+            <small style="color: #666;">Enter the patient's UHID to generate an OTP for access verification.</small>
+          </div>
+        </div>
+
+        <!-- Manage Patient Tab -->
+        <div id="manage-tab" class="tab-content">
+          <h2 style="color: var(--primary-blue); margin-bottom: 20px;">✏️ Manage Patient Record</h2>
+
+          <div id="patientViewSection" style="display: none;" class="card">
+            <h3 class="card-title">📌 Patient Information</h3>
+            <div class="data-item">
+              <span class="data-label">UHID:</span>
+              <span class="data-value" id="accessedPatientUHID">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Name:</span>
+              <span class="data-value" id="accessedPatientName">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Age:</span>
+              <span class="data-value" id="accessedPatientAge">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Gender:</span>
+              <span class="data-value" id="accessedPatientGender">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Blood Group:</span>
+              <span class="data-value" id="accessedPatientBlood">-</span>
+            </div>
+          </div>
+
+          <div id="patientEditSection" style="display: none;" class="card">
+            <h3 class="card-title">✏️ Update Patient Records</h3>
+            <form id="updatePatientForm">
+              <div class="form-group">
+                <label for="editPastIllness">Past Illness</label>
+                <textarea id="editPastIllness" placeholder="Enter or update past illness information..."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="editMedicalHistory">Medical History</label>
+                <textarea id="editMedicalHistory" placeholder="Enter or update medical history..."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="editPrescriptions">Prescriptions</label>
+                <textarea id="editPrescriptions" placeholder="Enter current prescriptions..."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="editReports">Reports</label>
+                <textarea id="editReports" placeholder="Enter lab reports and test results..."></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary">💾 Update Patient Record</button>
+            </form>
+          </div>
+
+          <div style="padding: 20px; background: #e6f7ff; border-radius: 8px; margin-top: 20px;" id="instructionsDiv">
+            <strong style="color: #0066cc;">📝 Instructions:</strong>
+            <p style="margin-top: 8px; color: #666; font-size: 14px;">
+              1. Search for a patient by UHID in the "Search Patient" tab<br>
+              2. An OTP will be generated and sent (demo: shown on screen)<br>
+              3. Enter the OTP to verify access<br>
+              4. Then update the patient's medical records here
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- OTP Verification Modal -->
+  <div id="otpVerifyModal" class="modal">
+    <div class="modal-content" style="margin-top: 30px;">
+      <div class="modal-header">
+        Verify OTP
+        <button class="modal-close" onclick="document.getElementById('otpVerifyModal').classList.remove('show')">&times;</button>
+      </div>
+      <form id="verifyOtpForm">
+        <div class="form-group" style="margin-bottom: 30px;">
+          <label for="verifyOtpInput" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 16px; font-weight: 600;">Enter OTP</span>
+            <button type="button" id="toggleOtpVisibility" style="background: none; border: none; color: var(--primary-blue); cursor: pointer; font-size: 12px; font-weight: 500; text-decoration: underline;">Show</button>
+          </label>
+          <input type="password" id="verifyOtpInput" placeholder="Enter 6-digit OTP" maxlength="6" required style="font-size: 24px; letter-spacing: 6px; padding: 16px; text-align: center;">
+          <small style="color: #999; margin-top: 8px; display: block;">OTP was sent to the patient (demo: shown in search notification)</small>
+        </div>
+        <button type="submit" class="btn btn-primary">Verify OTP</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Dashboard - NexHealth Pro</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="container">
+      <div class="header-content">
+        <h1>🏥 NexHealth Pro - Patient Dashboard</h1>
+        <button id="patientLogoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="patientDashboard" class="container">
+    <div class="dashboard-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <ul class="sidebar-menu">
+          <li><a href="#" class="active">📋 My Records</a></li>
+          <li><a href="#" class="active">📅 Appointments</a></li>
+          <li><a href="#" class="active">📊 Reports</a></li>
+        </ul>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="tabs">
+          <button class="tab-button active" data-tab="records-tab">Medical Records</button>
+          <button class="tab-button" data-tab="appointments-tab">Appointments</button>
+        </div>
+
+        <!-- Medical Records Tab -->
+        <div id="records-tab" class="tab-content active">
+          <h2 style="color: var(--primary-blue); margin-bottom: 20px;">Your Medical Records</h2>
+
+          <!-- Personal Information Card -->
+          <div class="card">
+            <h3 class="card-title">📌 Personal Information</h3>
+            <div class="data-item">
+              <span class="data-label">UHID:</span>
+              <span class="data-value" id="patientUHID">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Full Name:</span>
+              <span class="data-value" id="patientName">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Age:</span>
+              <span class="data-value" id="patientAge">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Gender:</span>
+              <span class="data-value" id="patientGender">-</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Blood Group:</span>
+              <span class="data-value" id="patientBlood">-</span>
+            </div>
+          </div>
+
+          <!-- Medical History Card -->
+          <div class="card">
+            <h3 class="card-title">🏥 Medical History</h3>
+            <div class="data-item">
+              <span class="data-label">Past Illness:</span>
+              <span class="data-value" id="patientPastIllness">None</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Medical History:</span>
+              <span class="data-value" id="patientMedicalHistory">None</span>
+            </div>
+          </div>
+
+          <!-- Current Medical Data Card -->
+          <div class="card">
+            <h3 class="card-title">💊 Current Medical Data</h3>
+            <div class="data-item">
+              <span class="data-label">Prescriptions:</span>
+              <span class="data-value" id="patientPrescriptions">No prescriptions</span>
+            </div>
+            <div class="data-item">
+              <span class="data-label">Reports:</span>
+              <span class="data-value" id="patientReports">No reports</span>
+            </div>
+          </div>
+
+          <div style="padding: 20px; background: #e6f0ff; border-radius: 8px; margin-top: 20px;">
+            <strong style="color: var(--primary-blue);">ℹ️ Read-Only Access</strong>
+            <p style="margin-top: 8px; color: #666; font-size: 14px;">Your medical records are view-only. Any updates will be made by authorized doctors only.</p>
+          </div>
+        </div>
+
+        <!-- Appointments Tab -->
+        <div id="appointments-tab" class="tab-content">
+          <h2 style="color: var(--primary-blue); margin-bottom: 20px;">Your Appointments</h2>
+
+          <div class="card">
+            <table>
+              <thead>
+                <tr>
+                  <th>Doctor Name</th>
+                  <th>Appointment Date & Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="patientAppointmentsTable">
+                <tr>
+                  <td colspan="3" style="text-align: center; color: #999;">Loading appointments...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>

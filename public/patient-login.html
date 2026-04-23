@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Login - NexHealth Pro</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="container">
+      <div class="header-content">
+        <h1>🏥 NexHealth Pro</h1>
+        <a href="/" style="color: white; text-decoration: none; font-size: 14px;">← Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="form-container">
+      <div class="tabs">
+        <button class="tab-button active" data-tab="login-tab">Login</button>
+        <button class="tab-button" data-tab="register-tab">Register</button>
+      </div>
+
+      <!-- Login Tab -->
+      <div id="login-tab" class="tab-content active">
+        <h2 class="form-title">Patient Login</h2>
+        <form id="patientLoginForm">
+          <div class="form-group">
+            <label for="uhid">UHID (Universal Health ID)</label>
+            <input type="text" id="uhid" name="uhid" required placeholder="e.g., UHID1001">
+          </div>
+
+          <div class="form-check">
+            <input type="checkbox" id="useOTP" name="useOTP">
+            <label for="useOTP">Use OTP instead of password</label>
+          </div>
+
+          <div id="passwordGroup" class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password">
+          </div>
+
+          <div id="otpGroup" class="form-group" style="display: none;">
+            <label for="otp">OTP</label>
+            <input type="text" id="otp" name="otp" placeholder="Enter 6-digit OTP" maxlength="6">
+          </div>
+
+          <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+
+        <div class="form-footer">
+          <p>Don't have an account? <button type="button" class="btn-link" onclick="document.querySelector('[data-tab=\'register-tab\']').click();">Register here</button></p>
+        </div>
+      </div>
+
+      <!-- Register Tab -->
+      <div id="register-tab" class="tab-content">
+        <h2 class="form-title">Patient Registration</h2>
+        <form id="patientRegisterForm">
+          <div class="form-group">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName" name="fullName" required>
+          </div>
+
+          <div class="form-group">
+            <label for="regPassword">Password</label>
+            <input type="password" id="regPassword" name="regPassword" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="form-group">
+              <label for="age">Age</label>
+              <input type="number" id="age" name="age" required min="1" max="120">
+            </div>
+
+            <div class="form-group">
+              <label for="gender">Gender</label>
+              <select id="gender" name="gender" required>
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="bloodGroup">Blood Group</label>
+            <select id="bloodGroup" name="bloodGroup" required>
+              <option value="">Select Blood Group</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="pastIllness">Past Illness (if any)</label>
+            <textarea id="pastIllness" name="pastIllness" placeholder="e.g., Asthma, Diabetes..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="medicalHistory">Medical History</label>
+            <textarea id="medicalHistory" name="medicalHistory" placeholder="Any previous medical conditions or surgeries..."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Register</button>
+        </form>
+
+        <div class="form-footer">
+          <p>Already have an account? <button type="button" class="btn-link" onclick="document.querySelector('[data-tab=\'login-tab\']').click();">Login here</button></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>

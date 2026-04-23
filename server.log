@@ -1,0 +1,6 @@
+nohup: ignoring input
+NexHealth Pro server running on http://localhost:5000
+Doctor credentials: doctor1/pass123, doctor2/pass123, doctor3/pass123
+Connected to SQLite database
+Patients table ready
+Appointments table ready
