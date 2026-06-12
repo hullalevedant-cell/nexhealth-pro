@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UHID Card - NexHealth Pro</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="container">
+      <div class="header-content">
+        <h1>🏥 NexHealth Pro - UHID Card</h1>
+        <a href="/patient-dashboard.html" class="logout-btn" style="text-decoration: none;">Back</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="uhidCardPage" class="container">
+    <div class="uhid-card-page-actions">
+      <button id="downloadUHIDCardBtn" class="btn btn-primary" style="max-width: 260px;">Download UHID Card</button>
+    </div>
+
+    <div id="uhidCardMessage"></div>
+
+    <div id="uhidCardCanvas" class="uhid-card-canvas" aria-label="UHID Card">
+      <div class="uhid-card-header">
+        <div class="uhid-logo">🏥</div>
+        <div>
+          <h2>UHID Identity Card</h2>
+          <p>Unique Healthcare Management and Identification System</p>
+        </div>
+      </div>
+
+      <div class="uhid-card-body">
+        <div class="uhid-photo-wrap">
+          <img id="uhidCardPhoto" class="uhid-card-photo" alt="Patient Photo">
+        </div>
+
+        <div class="uhid-details">
+          <div class="uhid-detail-row">
+            <span class="uhid-label">Full Name</span>
+            <span class="uhid-value" id="uhidCardName">-</span>
+          </div>
+          <div class="uhid-detail-row">
+            <span class="uhid-label">UHID Number</span>
+            <span class="uhid-value" id="uhidCardUHID">-</span>
+          </div>
+          <div class="uhid-detail-row">
+            <span class="uhid-label">Aadhaar (Last 4)</span>
+            <span class="uhid-value" id="uhidCardAadhaarLast4">----</span>
+          </div>
+          <div class="uhid-detail-row">
+            <span class="uhid-label">Date of Registration</span>
+            <span class="uhid-value" id="uhidCardRegistrationDate">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="uhid-card-footer">
+        <span>This card is system-generated for healthcare identification.</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html>

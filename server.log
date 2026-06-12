@@ -1,6 +1,212 @@
 nohup: ignoring input
-NexHealth Pro server running on http://localhost:5000
-Doctor credentials: doctor1/pass123, doctor2/pass123, doctor3/pass123
+Postgres pool initialized
+NexHealth Pro server running on port 5000
 Connected to SQLite database
 Patients table ready
 Appointments table ready
+Postgres test query error: AggregateError [ETIMEDOUT]: 
+    at /home/vedant/Desktop/ASEP2/NexHealth-Pro/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /home/vedant/Desktop/ASEP2/NexHealth-Pro/src/routes.js:279:20 {
+  code: 'ETIMEDOUT',
+  [errors]: [
+    Error: connect ETIMEDOUT 185.38.109.209:5432
+        at createConnectionError (node:net:1678:14)
+        at Timeout.internalConnectMultipleTimeout (node:net:1737:38)
+        at listOnTimeout (node:internal/timers:607:11)
+        at process.processTimers (node:internal/timers:541:7) {
+      errno: -110,
+      code: 'ETIMEDOUT',
+      syscall: 'connect',
+      address: '185.38.109.209',
+      port: 5432
+    },
+    Error: connect ETIMEDOUT 185.38.109.201:5432
+        at createConnectionError (node:net:1678:14)
+        at Timeout.internalConnectMultipleTimeout (node:net:1737:38)
+        at listOnTimeout (node:internal/timers:607:11)
+        at process.processTimers (node:internal/timers:541:7) {
+      errno: -110,
+      code: 'ETIMEDOUT',
+      syscall: 'connect',
+      address: '185.38.109.201',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.203:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.203',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.206:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.206',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.208:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.208',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.207:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.207',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.202:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.202',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.200:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.200',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.204:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.204',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.205:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.205',
+      port: 5432
+    }
+  ]
+}
+Postgres test query error: AggregateError [ECONNREFUSED]: 
+    at /home/vedant/Desktop/ASEP2/NexHealth-Pro/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /home/vedant/Desktop/ASEP2/NexHealth-Pro/src/routes.js:279:20 {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED 185.38.109.200:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.200',
+      port: 5432
+    },
+    Error: connect ETIMEDOUT 185.38.109.208:5432
+        at createConnectionError (node:net:1678:14)
+        at Timeout.internalConnectMultipleTimeout (node:net:1737:38)
+        at listOnTimeout (node:internal/timers:607:11)
+        at process.processTimers (node:internal/timers:541:7) {
+      errno: -110,
+      code: 'ETIMEDOUT',
+      syscall: 'connect',
+      address: '185.38.109.208',
+      port: 5432
+    },
+    Error: connect ETIMEDOUT 185.38.109.205:5432
+        at createConnectionError (node:net:1678:14)
+        at Timeout.internalConnectMultipleTimeout (node:net:1737:38)
+        at listOnTimeout (node:internal/timers:607:11)
+        at process.processTimers (node:internal/timers:541:7) {
+      errno: -110,
+      code: 'ETIMEDOUT',
+      syscall: 'connect',
+      address: '185.38.109.205',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.204:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.204',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.206:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.206',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.201:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.201',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.209:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.209',
+      port: 5432
+    },
+    Error: connect ETIMEDOUT 185.38.109.207:5432
+        at createConnectionError (node:net:1678:14)
+        at Timeout.internalConnectMultipleTimeout (node:net:1737:38)
+        at listOnTimeout (node:internal/timers:607:11)
+        at process.processTimers (node:internal/timers:541:7) {
+      errno: -110,
+      code: 'ETIMEDOUT',
+      syscall: 'connect',
+      address: '185.38.109.207',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.203:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.203',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 185.38.109.202:5432
+        at createConnectionError (node:net:1678:14)
+        at afterConnectMultiple (node:net:1708:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '185.38.109.202',
+      port: 5432
+    }
+  ]
+}

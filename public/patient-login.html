@@ -102,6 +102,16 @@
           </div>
 
           <div class="form-group">
+            <label for="aadhaarNumber">Aadhaar Number</label>
+            <input type="text" id="aadhaarNumber" name="aadhaarNumber" required maxlength="12" pattern="[0-9]{12}" placeholder="12-digit Aadhaar number">
+          </div>
+
+          <div class="form-group">
+            <label for="patientPhoto">Patient Photo (JPG, JPEG, PNG up to 5MB)</label>
+            <input type="file" id="patientPhoto" name="patientPhoto" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required>
+          </div>
+
+          <div class="form-group">
             <label for="pastIllness">Past Illness (if any)</label>
             <textarea id="pastIllness" name="pastIllness" placeholder="e.g., Asthma, Diabetes..."></textarea>
           </div>

@@ -14,9 +14,10 @@ A simple, professional healthcare management system built with Node.js, Express,
 ## Tech Stack
 
 - **Backend**: Node.js, Express.js
-- **Database**: SQLite3
+- **Database**: SQLite3 (primary storage)
+- **Optional PostgreSQL**: supported via `DATABASE_URL` for Supabase
 - **Frontend**: HTML, CSS, Vanilla JavaScript
-- **No external dependencies**: Bootstrap, React, or frontend libraries
+- **No external frontend frameworks**: Bootstrap, React, or similar
 
 ## Installation
 
@@ -30,7 +31,17 @@ npm install
 npm start
 ```
 
-The application will run on `http://localhost:3000`
+The application will run on `http://localhost:5000` by default.
+
+## Environment Variables
+
+If you want to enable PostgreSQL/Supabase support, create a `.env` file in the project root with:
+
+```bash
+DATABASE_URL=your-postgres-connection-url
+```
+
+The app will still use SQLite for existing functionality even when PostgreSQL is enabled.
 
 ## Default Doctor Credentials
 
@@ -40,13 +51,20 @@ Doctor 2: doctor2 / pass123
 Doctor 3: doctor3 / pass123
 ```
 
+## New PostgreSQL Test Route
+
+- `GET /test-db` - runs `SELECT NOW()` against PostgreSQL and returns the current database time.
+
+This route is only available when `DATABASE_URL` is configured.
+
 ## Project Structure
 
 ```
 NexHealth-Pro/
 ├── src/
-│   ├── server.js          # Express server
-│   ├── db.js              # Database initialization
+│   ├── server.js          # Express server and middleware
+│   ├── db.js              # SQLite database initialization
+│   ├── db_postgres.js     # PostgreSQL/Supabase connection pool
 │   ├── routes.js          # API routes
 │   └── otp.js             # OTP management
 ├── public/
@@ -63,18 +81,26 @@ NexHealth-Pro/
 
 ## Database
 
-The application automatically creates SQLite database with:
+### SQLite
+
+The application still uses SQLite for all core patient and appointment data.
+
 - **patients** table: Patient records, medical history, prescriptions, reports
 - **appointments** table: Appointment scheduling and management
 
+### PostgreSQL / Supabase
+
+A separate PostgreSQL pool is available in `src/db_postgres.js`. This is only used by the `/test-db` route for validation and does not replace SQLite.
+
 ## API Routes
 
-- `POST /patient/register` - Patient registration
-- `POST /patient/login` - Patient login
+- `POST /patient/register` - Patient registration (SQLite)
+- `POST /patient/login` - Patient login (SQLite)
 - `POST /doctor/login` - Doctor login
-- `GET /appointments/:doctorId` - Get doctor's appointments
-- `POST /patient/access` - Verify OTP and access patient record
-- `POST /patient/update` - Update patient medical records
+- `GET /appointments/:doctorId` - Get doctor's appointments (SQLite)
+- `POST /patient/access` - Verify OTP and access patient record (SQLite)
+- `POST /patient/update` - Update patient medical records (SQLite)
+- `GET /test-db` - Test PostgreSQL connection with `SELECT NOW()`
 
 ## Features in Detail
 
@@ -92,3 +118,9 @@ The application automatically creates SQLite database with:
 - Request OTP for patient access
 - Update patient prescriptions, reports, medical history, and past illness
 - Secure access control with OTP verification
+
+## Notes
+
+- Do not remove or replace SQLite logic unless you are ready to fully migrate.
+- PostgreSQL support is added minimally and modularly.
+- Frontend remains unchanged.

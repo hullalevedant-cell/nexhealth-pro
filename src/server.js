@@ -1,6 +1,12 @@
+require('dotenv').config();
+const dns = require('dns');
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
+
+dns.setDefaultResultOrder('ipv4first');
+
+const pool = require('./db_postgres');
 const routes = require('./routes');
 
 const app = express();
@@ -48,6 +54,30 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
   res.status(500).json({ success: false, message: 'Internal server error' });
+});
+
+app.get('/test-db', async (req, res) => {
+  if (!pool) {
+    return res.status(503).json({ success: false, message: 'Postgres not configured' });
+  }
+
+  try {
+    const result = await pool.query('SELECT NOW()');
+    res.json({
+      success: true,
+      time: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Postgres test query error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Postgres query failed',
+      error: err.message,
+      code: err.code || null,
+      detail: err.detail || null,
+      hint: err.hint || null
+    });
+  }
 });
 
 // Start server

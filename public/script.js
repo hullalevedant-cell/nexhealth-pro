@@ -11,6 +11,11 @@ function showMessage(element, message, type) {
   setTimeout(() => msgDiv.remove(), 5000);
 }
 
+function setMessageHtml(element, message, type) {
+  if (!element) return;
+  element.innerHTML = `<div class="message ${type}">${message}</div>`;
+}
+
 function saveToSessionStorage(key, value) {
   sessionStorage.setItem(key, JSON.stringify(value));
 }
@@ -23,6 +28,10 @@ function getFromSessionStorage(key) {
 function logout() {
   sessionStorage.clear();
   window.location.href = '/';
+}
+
+function getFallbackProfileImage() {
+  return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" fill="%23f5f5f5"/><circle cx="60" cy="45" r="22" fill="%23c9d6e5"/><rect x="28" y="76" width="64" height="30" rx="15" fill="%23c9d6e5"/></svg>';
 }
 
 // ============ Copy to Clipboard Function ============
@@ -46,22 +55,45 @@ if (patientRegisterForm) {
   patientRegisterForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const container = patientRegisterForm.parentElement;
+    const aadhaarNumber = document.getElementById('aadhaarNumber').value.trim();
+    const patientPhotoInput = document.getElementById('patientPhoto');
+    const patientPhotoFile = patientPhotoInput.files && patientPhotoInput.files[0];
 
-    const formData = {
-      full_name: document.getElementById('fullName').value,
-      password: document.getElementById('regPassword').value,
-      age: parseInt(document.getElementById('age').value),
-      gender: document.getElementById('gender').value,
-      blood_group: document.getElementById('bloodGroup').value,
-      past_illness: document.getElementById('pastIllness').value,
-      medical_history: document.getElementById('medicalHistory').value
-    };
+    if (!/^\d{12}$/.test(aadhaarNumber)) {
+      showMessage(container, 'Aadhaar number must be exactly 12 digits', 'error');
+      return;
+    }
+
+    if (!patientPhotoFile) {
+      showMessage(container, 'Patient photo is required', 'error');
+      return;
+    }
+
+    const validImageTypes = ['image/jpeg', 'image/png'];
+    if (!validImageTypes.includes(patientPhotoFile.type)) {
+      showMessage(container, 'Only JPG, JPEG, and PNG files are allowed', 'error');
+      return;
+    }
+    if (patientPhotoFile.size > 5 * 1024 * 1024) {
+      showMessage(container, 'Photo must be 5MB or smaller', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('full_name', document.getElementById('fullName').value);
+    formData.append('password', document.getElementById('regPassword').value);
+    formData.append('age', parseInt(document.getElementById('age').value, 10));
+    formData.append('gender', document.getElementById('gender').value);
+    formData.append('blood_group', document.getElementById('bloodGroup').value);
+    formData.append('aadhaar_number', aadhaarNumber);
+    formData.append('past_illness', document.getElementById('pastIllness').value);
+    formData.append('medical_history', document.getElementById('medicalHistory').value);
+    formData.append('photo', patientPhotoFile);
 
     try {
       const response = await fetch('/patient/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: formData
       });
 
       const data = await response.json();
@@ -248,6 +280,12 @@ if (patientDashboard) {
     document.getElementById('patientMedicalHistory').textContent = patient.medical_history || 'None';
     document.getElementById('patientPrescriptions').textContent = patient.prescriptions || 'No prescriptions';
     document.getElementById('patientReports').textContent = patient.reports || 'No reports';
+    const viewUHIDCardBtn = document.getElementById('viewUHIDCardBtn');
+    if (viewUHIDCardBtn && patient.uhid) {
+      viewUHIDCardBtn.href = `/uhid-card.html?uhid=${encodeURIComponent(patient.uhid)}`;
+    }
+
+    loadPatientProfile(patient.uhid);
 
     // Load appointments
     loadPatientAppointments(patient.uhid);
@@ -257,6 +295,43 @@ if (patientDashboard) {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', logout);
     }
+  }
+}
+
+async function loadPatientProfile(uhid) {
+  const profilePhotoEl = document.getElementById('patientProfilePhoto');
+  const aadhaarLast4El = document.getElementById('patientAadhaarLast4');
+  const fallbackPhoto = getFallbackProfileImage();
+
+  if (profilePhotoEl) {
+    profilePhotoEl.src = fallbackPhoto;
+    profilePhotoEl.onerror = () => {
+      profilePhotoEl.src = fallbackPhoto;
+    };
+  }
+
+  try {
+    const response = await fetch(`/patient/profile/${uhid}`);
+    const data = await response.json();
+    if (!data.success || !data.profile) {
+      return;
+    }
+
+    const profile = data.profile;
+    if (profile.name) {
+      document.getElementById('patientName').textContent = profile.name;
+    }
+    if (profile.uhid) {
+      document.getElementById('patientUHID').textContent = profile.uhid;
+    }
+    if (aadhaarLast4El) {
+      aadhaarLast4El.textContent = profile.aadhaar_last_4 || '----';
+    }
+    if (profilePhotoEl && profile.photo_url) {
+      profilePhotoEl.src = profile.photo_url;
+    }
+  } catch (error) {
+    console.error('Error loading patient profile:', error);
   }
 }
 
@@ -373,6 +448,127 @@ if (doctorDashboard) {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', logout);
     }
+  }
+}
+
+// ============ UHID Card Page ============
+const uhidCardPage = document.getElementById('uhidCardPage');
+if (uhidCardPage) {
+  const patient = getFromSessionStorage('currentPatient');
+  const queryUhid = new URLSearchParams(window.location.search).get('uhid');
+  const resolvedUhid = queryUhid || (patient && patient.uhid);
+  if (!resolvedUhid) {
+    window.location.href = '/patient-login.html';
+  } else {
+    loadUHIDCard(resolvedUhid);
+  }
+}
+
+async function loadUHIDCard(uhid) {
+  const messageEl = document.getElementById('uhidCardMessage');
+  const cardPhotoEl = document.getElementById('uhidCardPhoto');
+  const cardNameEl = document.getElementById('uhidCardName');
+  const cardUHIDEl = document.getElementById('uhidCardUHID');
+  const cardAadhaarEl = document.getElementById('uhidCardAadhaarLast4');
+  const cardRegistrationDateEl = document.getElementById('uhidCardRegistrationDate');
+  const downloadBtn = document.getElementById('downloadUHIDCardBtn');
+  const fallbackPhoto = getFallbackProfileImage();
+
+  cardPhotoEl.src = fallbackPhoto;
+  cardPhotoEl.onerror = () => {
+    cardPhotoEl.src = fallbackPhoto;
+  };
+  cardRegistrationDateEl.textContent = 'Not Available';
+  if (messageEl) {
+    messageEl.innerHTML = '';
+  }
+
+  try {
+    const response = await fetch(`/patient/profile/${uhid}`);
+    const data = await response.json();
+
+    if (!data.success || !data.profile) {
+      setMessageHtml(messageEl, 'Unable to load UHID card profile data.', 'error');
+      if (downloadBtn) downloadBtn.disabled = true;
+      return;
+    }
+
+    const profile = data.profile;
+    cardNameEl.textContent = profile.name || 'Not Available';
+    cardUHIDEl.textContent = profile.uhid || uhid;
+    cardAadhaarEl.textContent = profile.aadhaar_last_4 ? profile.aadhaar_last_4 : 'Missing';
+    cardRegistrationDateEl.textContent = profile.registration_date
+      ? new Date(profile.registration_date).toLocaleDateString()
+      : 'Not Available';
+
+    const warnings = [];
+    if (profile.photo_url) {
+      cardPhotoEl.src = profile.photo_url;
+    } else {
+      warnings.push({ text: 'Photo not found. Card will use a placeholder image.', type: 'info' });
+    }
+
+    if (!profile.aadhaar_last_4) {
+      warnings.push({ text: 'Aadhaar information missing. Only available data is shown.', type: 'warning' });
+    }
+
+    if (warnings.length > 0 && messageEl) {
+      messageEl.innerHTML = warnings
+        .map((warning) => `<div class="message ${warning.type}">${warning.text}</div>`)
+        .join('');
+    }
+
+    if (downloadBtn) {
+      downloadBtn.onclick = downloadUHIDCardPdf;
+    }
+  } catch (error) {
+    console.error('Error loading UHID card:', error);
+    setMessageHtml(messageEl, 'Error loading card data. Please try again.', 'error');
+    if (downloadBtn) downloadBtn.disabled = true;
+  }
+}
+
+async function downloadUHIDCardPdf() {
+  const messageEl = document.getElementById('uhidCardMessage');
+  const cardCanvasEl = document.getElementById('uhidCardCanvas');
+  const cardUHIDEl = document.getElementById('uhidCardUHID');
+  const renderedUHID = (cardUHIDEl && cardUHIDEl.textContent || '').trim();
+
+  if (!window.html2canvas || !window.jspdf || !window.jspdf.jsPDF) {
+    setMessageHtml(messageEl, 'PDF library failed to load. Check internet connectivity and retry.', 'error');
+    return;
+  }
+  if (!cardCanvasEl || !renderedUHID || renderedUHID === '-') {
+    setMessageHtml(messageEl, 'Unable to download card. Missing UHID card data.', 'error');
+    return;
+  }
+
+  try {
+    const canvas = await window.html2canvas(cardCanvasEl, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff'
+    });
+
+    const imageData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('landscape', 'pt', 'a4');
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const ratio = Math.min((pageWidth - 40) / imgWidth, (pageHeight - 40) / imgHeight);
+    const renderWidth = imgWidth * ratio;
+    const renderHeight = imgHeight * ratio;
+    const x = (pageWidth - renderWidth) / 2;
+    const y = (pageHeight - renderHeight) / 2;
+
+    pdf.addImage(imageData, 'PNG', x, y, renderWidth, renderHeight);
+    pdf.save(`${renderedUHID}-UHID-Card.pdf`);
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    setMessageHtml(messageEl, 'Failed to generate UHID card PDF. Please retry.', 'error');
   }
 }
 

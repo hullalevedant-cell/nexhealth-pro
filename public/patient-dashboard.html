@@ -41,6 +41,15 @@
           <!-- Personal Information Card -->
           <div class="card">
             <h3 class="card-title">📌 Personal Information</h3>
+            <div class="patient-profile-row">
+              <img id="patientProfilePhoto" class="patient-profile-photo" alt="Patient photo">
+              <div class="patient-profile-meta">
+                <div class="data-item">
+                  <span class="data-label">Aadhaar (Last 4):</span>
+                  <span class="data-value" id="patientAadhaarLast4">----</span>
+                </div>
+              </div>
+            </div>
             <div class="data-item">
               <span class="data-label">UHID:</span>
               <span class="data-value" id="patientUHID">-</span>
@@ -92,6 +101,10 @@
           <div style="padding: 20px; background: #e6f0ff; border-radius: 8px; margin-top: 20px;">
             <strong style="color: var(--primary-blue);">ℹ️ Read-Only Access</strong>
             <p style="margin-top: 8px; color: #666; font-size: 14px;">Your medical records are view-only. Any updates will be made by authorized doctors only.</p>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <a id="viewUHIDCardBtn" href="/uhid-card.html" class="btn btn-secondary" style="display: inline-block;">View UHID Card</a>
           </div>
         </div>
 

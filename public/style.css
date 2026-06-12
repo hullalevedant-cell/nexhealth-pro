@@ -305,6 +305,12 @@ textarea {
   border: 1px solid #bee5eb;
 }
 
+.message.warning {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+}
+
 /* Dashboard */
 .dashboard-container {
   display: grid;
@@ -400,6 +406,137 @@ textarea {
 .data-value {
   color: var(--text-light);
   word-break: break-word;
+}
+
+.patient-profile-row {
+  display: flex;
+  display: block;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.patient-profile-photo {
+  width: 70px;
+  height: 90px;
+  min-width: 70px;
+  min-height: 90px;
+  max-width: 70px;
+  max-height: 90px;
+  border-radius: 4px;
+  object-fit:scale-down;
+  object-position: center;
+  border: 1px solid var(--border-gray);
+  background: var(--light-gray);
+}
+
+.patient-profile-meta {
+  flex: 1;
+}
+
+/* UHID Card */
+.uhid-card-page-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.uhid-card-canvas {
+  max-width: 860px;
+  margin: 0 auto 24px auto;
+  background: linear-gradient(135deg, #ffffff, #f7fbff);
+  border: 2px solid #c8def5;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 102, 204, 0.12);
+  overflow: hidden;
+}
+
+.uhid-card-header {
+  background: linear-gradient(90deg, #0066cc, #004999);
+  color: #fff;
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.uhid-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.uhid-card-header h2 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.uhid-card-header p {
+  font-size: 13px;
+  opacity: 0.95;
+  margin-top: 2px;
+}
+
+.uhid-card-body {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 22px;
+  padding: 24px 22px;
+  align-items: start;
+}
+
+.uhid-photo-wrap {
+  width: 100px;
+  height: 125px;
+  border: 1px solid var(--border-gray);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--light-gray);
+}
+
+.uhid-card-photo {
+  display: block;
+  width: 100px;
+  /* height: 100%; */
+  object-fit: contain;
+  object-position: center;
+}
+
+.uhid-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uhid-detail-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-gray);
+  padding-bottom: 8px;
+}
+
+.uhid-label {
+  font-weight: 600;
+  color: #24425f;
+}
+
+.uhid-value {
+  color: #1f2d3d;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.uhid-card-footer {
+  border-top: 1px solid #d7e6f6;
+  padding: 12px 22px 16px 22px;
+  color: #5a6f84;
+  font-size: 12px;
 }
 
 /* Tables */
