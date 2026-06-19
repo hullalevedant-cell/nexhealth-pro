@@ -25,6 +25,12 @@ function getFromSessionStorage(key) {
   return item ? JSON.parse(item) : null;
 }
 
+function clearDoctorAccessState() {
+  sessionStorage.removeItem('pendingPatientUHID');
+  sessionStorage.removeItem('doctorAccessGrant');
+  sessionStorage.removeItem('accessedPatient');
+}
+
 function logout() {
   sessionStorage.clear();
   window.location.href = '/';
@@ -482,6 +488,18 @@ if (doctorDashboard) {
   } else {
     document.getElementById('doctorIdDisplay').textContent = doctor.doctor_id;
     loadDoctorAppointments(doctor.doctor_id);
+    const existingGrant = getFromSessionStorage('doctorAccessGrant');
+    if (
+      existingGrant &&
+      existingGrant.doctor_id === doctor.doctor_id &&
+      existingGrant.uhid &&
+      existingGrant.accessExpiresAt &&
+      existingGrant.accessExpiresAt > Date.now()
+    ) {
+      loadPatientForDoctor(existingGrant.uhid, doctor.doctor_id);
+    } else {
+      clearDoctorAccessState();
+    }
 
     // Setup search patient form
     const searchPatientForm = document.getElementById('searchPatientForm');
@@ -489,7 +507,10 @@ if (doctorDashboard) {
       searchPatientForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const container = searchPatientForm.parentElement;
-        const uhid = document.getElementById('searchUHID').value;
+        const uhid = document.getElementById('searchUHID').value.trim();
+        clearDoctorAccessState();
+        document.getElementById('patientViewSection').style.display = 'none';
+        document.getElementById('patientEditSection').style.display = 'none';
 
         try {
           const response = await fetch('/patient/access', {
@@ -501,12 +522,9 @@ if (doctorDashboard) {
           const data = await response.json();
 
           if (data.success) {
-            // Store for later verification
             saveToSessionStorage('pendingPatientUHID', uhid);
-            saveToSessionStorage('pendingOTP', data.otp); // For demo purposes
-            showMessage(container, `OTP generated: ${data.otp} (Demo mode)`, 'info');
+            showMessage(container, "OTP sent to patient's registered email.", 'info');
 
-            // Show OTP verification modal
             document.getElementById('otpVerifyModal').classList.add('show');
             document.getElementById('verifyOtpInput').value = '';
             document.getElementById('verifyOtpInput').focus();
@@ -525,19 +543,33 @@ if (doctorDashboard) {
       verifyOtpForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const container = verifyOtpForm.parentElement;
-        const otp = document.getElementById('verifyOtpInput').value;
-        const correctOTP = getFromSessionStorage('pendingOTP');
+        const otp = document.getElementById('verifyOtpInput').value.trim();
+        const uhid = getFromSessionStorage('pendingPatientUHID');
 
-        if (otp === correctOTP) {
-          showMessage(container, 'OTP verified successfully!', 'success');
-          document.getElementById('otpVerifyModal').classList.remove('show');
+        try {
+          const response = await fetch('/patient/access/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uhid, doctor_id: doctor.doctor_id, otp })
+          });
 
-          const uhid = getFromSessionStorage('pendingPatientUHID');
-          loadPatientForDoctor(uhid, doctor.doctor_id);
+          const data = await response.json();
 
-          document.getElementById('searchUHID').value = '';
-        } else {
-          showMessage(container, 'Invalid OTP', 'error');
+          if (data.success) {
+            saveToSessionStorage('doctorAccessGrant', {
+              uhid,
+              doctor_id: doctor.doctor_id,
+              accessExpiresAt: data.accessExpiresAt
+            });
+            showMessage(container, data.message || 'OTP verified successfully!', 'success');
+            document.getElementById('otpVerifyModal').classList.remove('show');
+            loadPatientForDoctor(uhid, doctor.doctor_id);
+            document.getElementById('searchUHID').value = '';
+          } else {
+            showMessage(container, data.message || 'Invalid OTP', 'error');
+          }
+        } catch (error) {
+          showMessage(container, 'Error verifying OTP', 'error');
         }
       });
     }
@@ -724,12 +756,17 @@ async function loadDoctorAppointments(doctorId) {
 
 async function loadPatientForDoctor(uhid, doctorId) {
   try {
-    const response = await fetch(`/patient/data/${uhid}`);
+    const response = await fetch(`/patient/data/${encodeURIComponent(uhid)}?doctor_id=${encodeURIComponent(doctorId)}`);
     const data = await response.json();
 
     if (data.success) {
       const patient = data.patient;
       saveToSessionStorage('accessedPatient', patient);
+      saveToSessionStorage('doctorAccessGrant', {
+        uhid,
+        doctor_id: doctorId,
+        accessExpiresAt: data.accessExpiresAt
+      });
 
       // Display patient info
       document.getElementById('accessedPatientUHID').textContent = patient.uhid;
@@ -754,12 +791,10 @@ async function loadPatientForDoctor(uhid, doctorId) {
         updatePatientForm.onsubmit = async (e) => {
           e.preventDefault();
           const container = updatePatientForm.parentElement;
-          const otp = getFromSessionStorage('pendingOTP');
 
           const updateData = {
             uhid: uhid,
             doctor_id: doctorId,
-            otp: otp,
             past_illness: document.getElementById('editPastIllness').value,
             medical_history: document.getElementById('editMedicalHistory').value,
             prescriptions: document.getElementById('editPrescriptions').value,
@@ -776,15 +811,31 @@ async function loadPatientForDoctor(uhid, doctorId) {
             const result = await response.json();
 
             if (result.success) {
+              saveToSessionStorage('doctorAccessGrant', {
+                uhid,
+                doctor_id: doctorId,
+                accessExpiresAt: result.accessExpiresAt
+              });
               showMessage(container, 'Patient record updated successfully', 'success');
             } else {
               showMessage(container, result.message, 'error');
+              if (response.status === 403) {
+                clearDoctorAccessState();
+                document.getElementById('patientViewSection').style.display = 'none';
+                document.getElementById('patientEditSection').style.display = 'none';
+              }
             }
           } catch (error) {
             showMessage(container, 'Error updating patient', 'error');
           }
         };
       }
+    } else {
+      if (response.status === 403) {
+        clearDoctorAccessState();
+      }
+      const searchForm = document.getElementById('searchPatientForm');
+      showMessage(searchForm ? searchForm.parentElement : doctorDashboard, data.message || 'Unable to load patient', 'error');
     }
   } catch (error) {
     console.error('Error loading patient:', error);

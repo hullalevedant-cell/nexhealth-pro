@@ -286,6 +286,31 @@ async function getPatientSessionPayload(patientUhid) {
   return { ...patient, ...medicalSnapshot };
 }
 
+function getDoctorAccessResponse(doctorId, uhid) {
+  return emailOtp.getDoctorAccessGrant({ doctorId, uhid });
+}
+
+async function ensureDoctorCanAccessPatient(res, doctorId, uhid) {
+  if (!doctorId || !uhid) {
+    res.status(400).json({ success: false, message: 'UHID and Doctor ID required' });
+    return null;
+  }
+
+  const doctor = await getDoctorById(doctorId);
+  if (!doctor) {
+    res.status(400).json({ success: false, message: 'Invalid doctor' });
+    return null;
+  }
+
+  const access = getDoctorAccessResponse(doctorId, uhid);
+  if (!access.ok) {
+    res.status(access.status || 403).json({ success: false, message: access.message });
+    return null;
+  }
+
+  return access;
+}
+
 // POST /patient/register
 router.post('/patient/register', async (req, res) => {
   try {
@@ -490,10 +515,10 @@ router.post('/patient/email-otp/send', async (req, res) => {
       code: error.code || null,
       stack: error.stack
     });
-    if (String(error.message || '').includes('EMAIL_USER and EMAIL_PASS')) {
+    if (String(error.message || '').includes('RESEND_API_KEY')) {
       return res.status(500).json({
         success: false,
-        message: 'Email OTP is not configured. Set EMAIL_USER and EMAIL_PASS in .env.'
+        message: 'Email OTP is not configured. Set RESEND_API_KEY in .env.'
       });
     }
     return res.status(500).json({ success: false, message: 'Internal server error' });
@@ -610,19 +635,30 @@ router.post('/patient/access', async (req, res) => {
     }
 
     await ensurePgPatientsTable();
-    const result = await pgPool.query('SELECT uhid FROM patients WHERE uhid = $1', [uhid]);
+    const result = await pgPool.query(
+      'SELECT uhid, full_name, email FROM patients WHERE uhid = $1',
+      [uhid]
+    );
     const patient = result.rows[0];
     if (!patient) {
       return res.status(400).json({ success: false, message: 'Patient not found' });
     }
 
-    // Generate OTP
-    const generatedOtp = otpModule.generateAndStoreOTP(uhid);
+    const sendResult = await emailOtp.sendDoctorAccessOtp({
+      doctorId: doctor_id,
+      uhid: patient.uhid,
+      email: patient.email,
+      name: patient.full_name
+    });
+
+    if (!sendResult.ok) {
+      return res.status(sendResult.status || 400).json({ success: false, message: sendResult.message });
+    }
 
     res.json({
       success: true,
-      message: 'OTP generated and sent to patient',
-      otp: generatedOtp
+      message: "OTP sent to patient's registered email.",
+      expiresInMinutes: 5
     });
   } catch (error) {
     console.error('Patient access exception:', {
@@ -636,10 +672,10 @@ router.post('/patient/access', async (req, res) => {
   }
 });
 
-// POST /patient/update (Doctor updates patient record)
-router.post('/patient/update', async (req, res) => {
+// POST /patient/access/verify (Verify patient consent OTP for doctor access)
+router.post('/patient/access/verify', async (req, res) => {
   try {
-    const { uhid, doctor_id, otp, prescriptions, reports, medical_history, past_illness } = req.body;
+    const { uhid, doctor_id, otp } = req.body;
 
     if (!uhid || !doctor_id || !otp) {
       return res.status(400).json({ success: false, message: 'UHID, Doctor ID, and OTP required' });
@@ -650,10 +686,52 @@ router.post('/patient/update', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid doctor' });
     }
 
-    // Verify OTP
-    const otpVerification = otpModule.verifyOTP(uhid, otp);
-    if (!otpVerification.valid) {
-      return res.status(400).json({ success: false, message: otpVerification.message });
+    await ensurePgPatientsTable();
+    const existsResult = await pgPool.query('SELECT uhid FROM patients WHERE uhid = $1', [uhid]);
+    const existingPatient = existsResult.rows[0];
+    if (!existingPatient) {
+      return res.status(400).json({ success: false, message: 'Patient not found' });
+    }
+
+    const verification = emailOtp.verifyDoctorAccessOtp({
+      doctorId: doctor_id,
+      uhid,
+      otp
+    });
+
+    if (!verification.ok) {
+      return res.status(verification.status || 400).json({ success: false, message: verification.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'OTP verified. Doctor access granted for 15 minutes.',
+      accessExpiresAt: verification.expiresAt
+    });
+  } catch (error) {
+    console.error('Patient access verify exception:', {
+      message: error.message,
+      code: error.code || null,
+      detail: error.detail || null,
+      hint: error.hint || null,
+      stack: error.stack
+    });
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// POST /patient/update (Doctor updates patient record)
+router.post('/patient/update', async (req, res) => {
+  try {
+    const { uhid, doctor_id, prescriptions, reports, medical_history, past_illness } = req.body;
+
+    if (!uhid || !doctor_id) {
+      return res.status(400).json({ success: false, message: 'UHID and Doctor ID required' });
+    }
+
+    const access = await ensureDoctorCanAccessPatient(res, doctor_id, uhid);
+    if (!access) {
+      return;
     }
 
     await ensurePgPatientsTable();
@@ -684,7 +762,11 @@ router.post('/patient/update', async (req, res) => {
     ) {
       return res.status(400).json({ success: false, message: 'No fields to update' });
     }
-    res.json({ success: true, message: 'Patient record updated successfully' });
+    res.json({
+      success: true,
+      message: 'Patient record updated successfully',
+      accessExpiresAt: access.expiresAt
+    });
   } catch (error) {
     console.error('Patient update exception:', {
       message: error.message,
@@ -701,6 +783,12 @@ router.post('/patient/update', async (req, res) => {
 router.get('/patient/data/:uhid', async (req, res) => {
   try {
     const uhid = req.params.uhid;
+    const doctorId = req.query.doctor_id;
+    const access = await ensureDoctorCanAccessPatient(res, doctorId, uhid);
+    if (!access) {
+      return;
+    }
+
     await ensurePgPatientsTable();
 
     const result = await pgPool.query('SELECT * FROM patients WHERE uhid = $1', [uhid]);
@@ -709,7 +797,11 @@ router.get('/patient/data/:uhid', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Patient not found' });
     }
     const medicalSnapshot = await getPatientMedicalSnapshot(uhid);
-    res.json({ success: true, patient: { ...patient, ...medicalSnapshot } });
+    res.json({
+      success: true,
+      patient: { ...patient, ...medicalSnapshot },
+      accessExpiresAt: access.expiresAt
+    });
   } catch (error) {
     console.error('Patient data exception:', {
       message: error.message,

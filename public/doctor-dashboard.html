@@ -70,7 +70,7 @@
               <input type="text" id="searchUHID" placeholder="Enter Patient UHID (e.g., UHID1001)" required style="flex: 1; padding: 12px 15px; border: 2px solid #0066cc; border-radius: 4px; font-size: 14px; min-width: 200px;">
               <button type="submit" style="padding: 12px 18px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap; flex-shrink: 0;">Request OTP</button>
             </form>
-            <small style="color: #666;">Enter the patient's UHID to generate an OTP for access verification.</small>
+            <small style="color: #666;">Enter the patient's UHID to send a consent OTP to the patient's registered email.</small>
           </div>
         </div>
 
@@ -133,9 +133,9 @@
             <strong style="color: #0066cc;">📝 Instructions:</strong>
             <p style="margin-top: 8px; color: #666; font-size: 14px;">
               1. Search for a patient by UHID in the "Search Patient" tab<br>
-              2. An OTP will be generated and sent (demo: shown on screen)<br>
-              3. Enter the OTP to verify access<br>
-              4. Then update the patient's medical records here
+              2. An OTP will be sent to the patient's registered email<br>
+              3. Enter the OTP shared by the patient to verify access<br>
+              4. Access remains active for 15 minutes after verification
             </p>
           </div>
         </div>
@@ -157,7 +157,7 @@
             <button type="button" id="toggleOtpVisibility" style="background: none; border: none; color: var(--primary-blue); cursor: pointer; font-size: 12px; font-weight: 500; text-decoration: underline;">Show</button>
           </label>
           <input type="password" id="verifyOtpInput" placeholder="Enter 6-digit OTP" maxlength="6" required style="font-size: 24px; letter-spacing: 6px; padding: 16px; text-align: center;">
-          <small style="color: #999; margin-top: 8px; display: block;">OTP was sent to the patient (demo: shown in search notification)</small>
+          <small style="color: #999; margin-top: 8px; display: block;">Ask the patient for the OTP sent to their registered email.</small>
         </div>
         <button type="submit" class="btn btn-primary">Verify OTP</button>
       </form>
