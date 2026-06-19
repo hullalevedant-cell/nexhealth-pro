@@ -23,7 +23,7 @@ function hashOtp(otp, salt) {
 
 function getResendConfig() {
   const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_USER;
+  const fromEmail = 'NexHealth <onboarding@resend.dev>';
 
   if (!apiKey) {
     throw new Error('RESEND_API_KEY is required');
@@ -38,6 +38,9 @@ function getResendConfig() {
 
 function sendOtpEmail({ to, otp, name }) {
   const { apiKey, fromEmail } = getResendConfig();
+  console.log('[Resend] Using sender address', {
+    from: fromEmail
+  });
   const payload = JSON.stringify({
     from: fromEmail,
     to: [to],
