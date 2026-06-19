@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email OTP Verification - NexHealth Pro</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="header">
+    <div class="container">
+      <div class="header-content">
+        <h1>🏥 NexHealth Pro</h1>
+        <a href="/patient-login.html" style="color: white; text-decoration: none; font-size: 14px;">← Back to Login</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="form-container">
+      <h2 class="form-title">Verify Email OTP</h2>
+      <form id="patientEmailOtpForm">
+        <div class="form-group">
+          <label for="emailOtpUhid">UHID</label>
+          <input type="text" id="emailOtpUhid" name="uhid" required placeholder="e.g., UHID1001">
+        </div>
+
+        <div class="form-group">
+          <label for="emailOtp">6-digit OTP</label>
+          <input type="text" id="emailOtp" name="otp" required maxlength="6" inputmode="numeric" placeholder="Enter the OTP">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Verify OTP</button>
+        <button type="button" id="resendEmailOtpBtn" class="btn btn-secondary" style="width: 100%; margin-top: 12px;">Resend OTP</button>
+      </form>
+
+      <div class="form-footer">
+        <p>Use your password instead? <a href="/patient-login.html">Back to password login</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>

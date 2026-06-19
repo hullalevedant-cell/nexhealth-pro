@@ -3,8 +3,10 @@ const router = express.Router();
 const { db } = require('./db');
 const pgPool = require('./db_postgres');
 const otpModule = require('./otp');
+const emailOtp = require('./email_otp');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
+const QRCode = require('qrcode');
 
 // SQLite is used for patients, appointments, and main application data.
 // PostgreSQL is configured separately in src/db_postgres.js and only used by /test-db.
@@ -100,6 +102,7 @@ async function ensurePgPatientsTable() {
       age INTEGER NOT NULL,
       gender TEXT NOT NULL,
       blood_group TEXT NOT NULL,
+      email TEXT,
       past_illness TEXT DEFAULT '',
       medical_history TEXT DEFAULT '',
       prescriptions TEXT DEFAULT '',
@@ -118,6 +121,11 @@ async function ensurePgPatientsTable() {
   await pgPool.query(`
     ALTER TABLE patients
     ADD COLUMN IF NOT EXISTS photo_url TEXT
+  `);
+
+  await pgPool.query(`
+    ALTER TABLE patients
+    ADD COLUMN IF NOT EXISTS email TEXT
   `);
 
   pgPatientsTableReady = true;
@@ -266,17 +274,30 @@ async function getPatientMedicalSnapshot(patientUhid) {
   };
 }
 
+async function getPatientSessionPayload(patientUhid) {
+  await ensurePgPatientsTable();
+  const result = await pgPool.query('SELECT * FROM patients WHERE uhid = $1', [patientUhid]);
+  const patient = result.rows[0];
+  if (!patient) {
+    return null;
+  }
+
+  const medicalSnapshot = await getPatientMedicalSnapshot(patientUhid);
+  return { ...patient, ...medicalSnapshot };
+}
+
 // POST /patient/register
 router.post('/patient/register', async (req, res) => {
   try {
     await runSinglePhotoUpload(req, res);
-    const { full_name, password, age, gender, blood_group, past_illness, medical_history } = req.body;
+    const { full_name, password, age, gender, blood_group, past_illness, medical_history, email } = req.body;
     const aadhaar_number = req.body.aadhaar_number || req.body.aadhaarNumber;
     const patientPhoto = (req.files && ((req.files.photo && req.files.photo[0]) || (req.files.patientPhoto && req.files.patientPhoto[0]))) || null;
 
     const normalized = {
       full_name: String(full_name || '').trim(),
       password: String(password || '').trim(),
+      email: String(email || '').trim(),
       gender: String(gender || '').trim(),
       blood_group: String(blood_group || '').trim(),
       aadhaar_number: String(aadhaar_number || '').trim()
@@ -286,6 +307,7 @@ router.post('/patient/register', async (req, res) => {
     const missingFields = [];
     if (!normalized.full_name) missingFields.push('full_name');
     if (!normalized.password) missingFields.push('password');
+    if (!normalized.email) missingFields.push('email');
     if (!Number.isFinite(parsedAge) || parsedAge <= 0) missingFields.push('age');
     if (!normalized.gender) missingFields.push('gender');
     if (!normalized.blood_group) missingFields.push('blood_group');
@@ -300,6 +322,9 @@ router.post('/patient/register', async (req, res) => {
     }
     if (!/^\d{12}$/.test(normalized.aadhaar_number)) {
       return res.status(400).json({ success: false, message: 'Aadhaar number must be exactly 12 digits' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.email)) {
+      return res.status(400).json({ success: false, message: 'Valid email address is required' });
     }
 
     await ensurePgPatientsTable();
@@ -322,9 +347,9 @@ router.post('/patient/register', async (req, res) => {
         await pgPool.query(
           `
             INSERT INTO patients (
-              uhid, full_name, password, age, gender, blood_group, past_illness, medical_history, prescriptions, reports, aadhaar_number, photo_url
+              uhid, full_name, password, age, gender, blood_group, email, past_illness, medical_history, prescriptions, reports, aadhaar_number, photo_url
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '', '', $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, '', '', $10, $11)
           `,
           [
             uhid,
@@ -333,6 +358,7 @@ router.post('/patient/register', async (req, res) => {
             parsedAge,
             normalized.gender,
             normalized.blood_group,
+            normalized.email,
             past_illness || '',
             medical_history || '',
             normalized.aadhaar_number,
@@ -403,14 +429,10 @@ router.post('/patient/login', async (req, res) => {
       if (!otpVerification.valid) {
         return res.status(400).json({ success: false, message: otpVerification.message });
       }
-      // OTP verified, proceed with login
-      const result = await pgPool.query('SELECT * FROM patients WHERE uhid = $1', [uhid]);
-      const patient = result.rows[0];
-      if (!patient) {
+      const responsePatient = await getPatientSessionPayload(uhid);
+      if (!responsePatient) {
         return res.status(400).json({ success: false, message: 'Patient not found' });
       }
-      const medicalSnapshot = await getPatientMedicalSnapshot(uhid);
-      const responsePatient = { ...patient, ...medicalSnapshot };
       return res.json({ success: true, message: 'Login successful via OTP', patient: responsePatient });
     } else if (password) {
       const result = await pgPool.query('SELECT * FROM patients WHERE uhid = $1 AND password = $2', [uhid, password]);
@@ -418,8 +440,7 @@ router.post('/patient/login', async (req, res) => {
       if (!patient) {
         return res.status(400).json({ success: false, message: 'Invalid UHID or password' });
       }
-      const medicalSnapshot = await getPatientMedicalSnapshot(uhid);
-      const responsePatient = { ...patient, ...medicalSnapshot };
+      const responsePatient = await getPatientSessionPayload(uhid);
       return res.json({ success: true, message: 'Login successful', patient: responsePatient });
     } else {
       return res.status(400).json({ success: false, message: 'Password or OTP required' });
@@ -427,6 +448,88 @@ router.post('/patient/login', async (req, res) => {
   } catch (error) {
     console.error('Login exception:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// POST /patient/email-otp/send
+router.post('/patient/email-otp/send', async (req, res) => {
+  try {
+    const { uhid } = req.body;
+    if (!uhid) {
+      return res.status(400).json({ success: false, message: 'UHID is required' });
+    }
+
+    await ensurePgPatientsTable();
+    const result = await pgPool.query(
+      'SELECT uhid, full_name, email FROM patients WHERE uhid = $1',
+      [uhid]
+    );
+    const patient = result.rows[0];
+    if (!patient) {
+      return res.status(400).json({ success: false, message: 'Patient not found' });
+    }
+
+    const sendResult = await emailOtp.sendEmailOtp({
+      uhid: patient.uhid,
+      email: patient.email,
+      name: patient.full_name
+    });
+
+    if (!sendResult.ok) {
+      return res.status(sendResult.status || 400).json({ success: false, message: sendResult.message });
+    }
+
+    return res.json({
+      success: true,
+      message: `OTP sent to ${sendResult.maskedEmail}`,
+      expiresInMinutes: 5
+    });
+  } catch (error) {
+    console.error('Email OTP send exception:', {
+      message: error.message,
+      code: error.code || null,
+      stack: error.stack
+    });
+    if (String(error.message || '').includes('EMAIL_USER and EMAIL_PASS')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Email OTP is not configured. Set EMAIL_USER and EMAIL_PASS in .env.'
+      });
+    }
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// POST /patient/email-otp/verify
+router.post('/patient/email-otp/verify', async (req, res) => {
+  try {
+    const { uhid, otp } = req.body;
+    if (!uhid || !otp) {
+      return res.status(400).json({ success: false, message: 'UHID and OTP are required' });
+    }
+
+    const verification = emailOtp.verifyEmailOtp({ uhid, otp });
+    if (!verification.ok) {
+      return res.status(verification.status || 400).json({ success: false, message: verification.message });
+    }
+
+    const patient = await getPatientSessionPayload(uhid);
+    if (!patient) {
+      return res.status(400).json({ success: false, message: 'Patient not found' });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Email OTP verified successfully',
+      patient
+    });
+  } catch (error) {
+    console.error('Email OTP verify exception:', {
+      message: error.message,
+      code: error.code || null,
+      stack: error.stack
+    });
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
@@ -637,6 +740,26 @@ router.get('/patient/profile/:uhid', async (req, res) => {
       ? patient.aadhaar_number.slice(-4)
       : null;
 
+    let qrDataUrl = null;
+    try {
+      qrDataUrl = await QRCode.toDataURL(
+        JSON.stringify({
+          uhid: patient.uhid,
+          name: patient.full_name
+        }),
+        {
+          errorCorrectionLevel: 'M',
+          margin: 1,
+          width: 180
+        }
+      );
+    } catch (qrError) {
+      console.error('Patient QR generation failed:', {
+        message: qrError.message,
+        code: qrError.code || null
+      });
+    }
+
     return res.json({
       success: true,
       profile: {
@@ -644,6 +767,7 @@ router.get('/patient/profile/:uhid', async (req, res) => {
         uhid: patient.uhid,
         aadhaar_last_4: aadhaarLast4,
         photo_url: patient.photo_url || null,
+        qr_data_url: qrDataUrl,
         registration_date: patient.created_at || null
       }
     });

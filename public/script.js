@@ -58,6 +58,12 @@ if (patientRegisterForm) {
     const aadhaarNumber = document.getElementById('aadhaarNumber').value.trim();
     const patientPhotoInput = document.getElementById('patientPhoto');
     const patientPhotoFile = patientPhotoInput.files && patientPhotoInput.files[0];
+    const email = document.getElementById('email').value.trim();
+
+    if (!email) {
+      showMessage(container, 'Email address is required', 'error');
+      return;
+    }
 
     if (!/^\d{12}$/.test(aadhaarNumber)) {
       showMessage(container, 'Aadhaar number must be exactly 12 digits', 'error');
@@ -85,6 +91,7 @@ if (patientRegisterForm) {
     formData.append('age', parseInt(document.getElementById('age').value, 10));
     formData.append('gender', document.getElementById('gender').value);
     formData.append('blood_group', document.getElementById('bloodGroup').value);
+    formData.append('email', email);
     formData.append('aadhaar_number', aadhaarNumber);
     formData.append('past_illness', document.getElementById('pastIllness').value);
     formData.append('medical_history', document.getElementById('medicalHistory').value);
@@ -165,22 +172,13 @@ if (patientLoginForm) {
   patientLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const container = patientLoginForm.parentElement;
-    const useOTP = document.getElementById('useOTP').checked;
-
     const loginData = {
       uhid: document.getElementById('uhid').value,
-      useOTP: useOTP,
-      password: useOTP ? undefined : document.getElementById('password').value,
-      otp: useOTP ? document.getElementById('otp').value : undefined
+      password: document.getElementById('password').value
     };
 
-    if (!useOTP && !loginData.password) {
+    if (!loginData.password) {
       showMessage(container, 'Password required', 'error');
-      return;
-    }
-
-    if (useOTP && !loginData.otp) {
-      showMessage(container, 'OTP required', 'error');
       return;
     }
 
@@ -207,20 +205,43 @@ if (patientLoginForm) {
     }
   });
 
-  // Toggle OTP/Password input
-  const useOTPCheckbox = document.getElementById('useOTP');
-  if (useOTPCheckbox) {
-    useOTPCheckbox.addEventListener('change', () => {
-      const passwordGroup = document.getElementById('passwordGroup');
-      const otpGroup = document.getElementById('otpGroup');
-      if (useOTPCheckbox.checked) {
-        passwordGroup.style.display = 'none';
-        otpGroup.style.display = 'block';
-        document.getElementById('otp').focus();
-      } else {
-        passwordGroup.style.display = 'block';
-        otpGroup.style.display = 'none';
-        document.getElementById('password').focus();
+  const sendEmailOtpBtn = document.getElementById('sendEmailOtpBtn');
+  if (sendEmailOtpBtn) {
+    sendEmailOtpBtn.addEventListener('click', async () => {
+      const container = patientLoginForm.parentElement;
+      const uhid = document.getElementById('uhid').value.trim();
+
+      if (!uhid) {
+        showMessage(container, 'UHID is required to send an email OTP', 'error');
+        return;
+      }
+
+      sendEmailOtpBtn.disabled = true;
+      const originalText = sendEmailOtpBtn.textContent;
+      sendEmailOtpBtn.textContent = 'Sending...';
+
+      try {
+        const response = await fetch('/patient/email-otp/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uhid })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          saveToSessionStorage('pendingEmailOtpUhid', uhid);
+          showMessage(container, data.message || 'OTP sent successfully', 'success');
+          setTimeout(() => {
+            window.location.href = `/patient-email-otp.html?uhid=${encodeURIComponent(uhid)}`;
+          }, 800);
+        } else {
+          showMessage(container, data.message || 'Failed to send OTP', 'error');
+        }
+      } catch (error) {
+        showMessage(container, 'Error sending OTP', 'error');
+      } finally {
+        sendEmailOtpBtn.disabled = false;
+        sendEmailOtpBtn.textContent = originalText;
       }
     });
   }
@@ -365,6 +386,92 @@ async function loadPatientAppointments(uhid) {
   }
 }
 
+// ============ Patient Email OTP Page ============
+const patientEmailOtpForm = document.getElementById('patientEmailOtpForm');
+if (patientEmailOtpForm) {
+  const uhidInput = document.getElementById('emailOtpUhid');
+  const otpInput = document.getElementById('emailOtp');
+  const resendBtn = document.getElementById('resendEmailOtpBtn');
+  const queryUhid = new URLSearchParams(window.location.search).get('uhid');
+  const storedUhid = getFromSessionStorage('pendingEmailOtpUhid');
+  const resolvedUhid = queryUhid || storedUhid || '';
+
+  if (resolvedUhid && uhidInput) {
+    uhidInput.value = resolvedUhid;
+  }
+
+  patientEmailOtpForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const container = patientEmailOtpForm.parentElement;
+    const uhid = uhidInput.value.trim();
+    const otp = otpInput.value.trim();
+
+    if (!uhid || !otp) {
+      showMessage(container, 'UHID and OTP are required', 'error');
+      return;
+    }
+
+    try {
+      const response = await fetch('/patient/email-otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uhid, otp })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        saveToSessionStorage('currentPatient', data.patient);
+        sessionStorage.removeItem('pendingEmailOtpUhid');
+        showMessage(container, 'OTP verified successfully!', 'success');
+        setTimeout(() => {
+          window.location.href = '/patient-dashboard.html';
+        }, 1200);
+      } else {
+        showMessage(container, data.message || 'OTP verification failed', 'error');
+      }
+    } catch (error) {
+      showMessage(container, 'Error verifying OTP', 'error');
+    }
+  });
+
+  if (resendBtn) {
+    resendBtn.addEventListener('click', async () => {
+      const container = patientEmailOtpForm.parentElement;
+      const uhid = uhidInput.value.trim();
+
+      if (!uhid) {
+        showMessage(container, 'UHID is required to resend OTP', 'error');
+        return;
+      }
+
+      resendBtn.disabled = true;
+      const originalText = resendBtn.textContent;
+      resendBtn.textContent = 'Resending...';
+
+      try {
+        const response = await fetch('/patient/email-otp/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uhid })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          saveToSessionStorage('pendingEmailOtpUhid', uhid);
+          showMessage(container, data.message || 'OTP resent successfully', 'success');
+        } else {
+          showMessage(container, data.message || 'Failed to resend OTP', 'error');
+        }
+      } catch (error) {
+        showMessage(container, 'Error resending OTP', 'error');
+      } finally {
+        resendBtn.disabled = false;
+        resendBtn.textContent = originalText;
+      }
+    });
+  }
+}
+
 // ============ Doctor Dashboard ============
 const doctorDashboard = document.getElementById('doctorDashboard');
 if (doctorDashboard) {
@@ -471,13 +578,21 @@ async function loadUHIDCard(uhid) {
   const cardUHIDEl = document.getElementById('uhidCardUHID');
   const cardAadhaarEl = document.getElementById('uhidCardAadhaarLast4');
   const cardRegistrationDateEl = document.getElementById('uhidCardRegistrationDate');
+  const cardQrEl = document.getElementById('uhidCardQr');
   const downloadBtn = document.getElementById('downloadUHIDCardBtn');
   const fallbackPhoto = getFallbackProfileImage();
+  const fallbackQr = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="92" height="92"><rect width="100%" height="100%" fill="%23ffffff"/><rect x="8" y="8" width="76" height="76" rx="8" fill="%23f5f5f5" stroke="%23d0d7de"/><path d="M24 24h14v14H24zM54 24h14v14H54zM24 54h14v14H24z" fill="%23c9d6e5"/></svg>';
 
   cardPhotoEl.src = fallbackPhoto;
   cardPhotoEl.onerror = () => {
     cardPhotoEl.src = fallbackPhoto;
   };
+  if (cardQrEl) {
+    cardQrEl.src = fallbackQr;
+    cardQrEl.onerror = () => {
+      cardQrEl.src = fallbackQr;
+    };
+  }
   cardRegistrationDateEl.textContent = 'Not Available';
   if (messageEl) {
     messageEl.innerHTML = '';
@@ -510,6 +625,15 @@ async function loadUHIDCard(uhid) {
 
     if (!profile.aadhaar_last_4) {
       warnings.push({ text: 'Aadhaar information missing. Only available data is shown.', type: 'warning' });
+    }
+
+    if (profile.qr_data_url) {
+      if (cardQrEl) {
+        cardQrEl.src = profile.qr_data_url;
+      }
+    } else {
+      warnings.push({ text: 'QR code could not be generated for this patient.', type: 'error' });
+      if (downloadBtn) downloadBtn.disabled = true;
     }
 
     if (warnings.length > 0 && messageEl) {
