@@ -1,9 +1,15 @@
 const crypto = require('crypto');
+const dns = require('dns');
+const net = require('net');
 const nodemailer = require('nodemailer');
+
+dns.setDefaultResultOrder('ipv4first');
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 3;
+const SMTP_HOST = 'smtp.gmail.com';
+const SMTP_PORT = 587;
 
 const otpStore = new Map();
 let transporter = null;
@@ -31,11 +37,129 @@ function getTransporter() {
     throw new Error('EMAIL_USER and EMAIL_PASS are required');
   }
 
+  const resolveSmtpHostIpv4 = () =>
+    new Promise((resolve, reject) => {
+      dns.lookup(SMTP_HOST, { family: 4 }, (error, address, family) => {
+        if (error) {
+          console.error('[SMTP] IPv4 DNS lookup failed', {
+            host: SMTP_HOST,
+            code: error.code,
+            message: error.message
+          });
+          reject(error);
+          return;
+        }
+
+        console.log('[SMTP] Resolved Gmail SMTP over IPv4', {
+          host: SMTP_HOST,
+          address,
+          family
+        });
+        resolve(address);
+      });
+    });
+
   transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: false,
     auth: {
       user,
       pass
+    },
+    family: 4,
+    logger: true,
+    debug: true,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+    tls: {
+      servername: SMTP_HOST,
+      minVersion: 'TLSv1.2'
+    },
+    getSocket: async (options, callback) => {
+      try {
+        const address = await resolveSmtpHostIpv4();
+        const socket = net.connect({
+          host: address,
+          port: options.port || SMTP_PORT,
+          family: 4
+        });
+        let settled = false;
+
+        socket.setTimeout(options.connectionTimeout || 30000);
+
+        socket.once('lookup', (error, resolvedAddress, family, host) => {
+          if (error) {
+            console.error('[SMTP] Socket lookup error', {
+              host,
+              code: error.code,
+              message: error.message
+            });
+            return;
+          }
+
+          console.log('[SMTP] Socket lookup complete', {
+            host,
+            resolvedAddress,
+            family
+          });
+        });
+
+        socket.once('connect', () => {
+          console.log('[SMTP] Connected to Gmail SMTP', {
+            remoteAddress: socket.remoteAddress,
+            remotePort: socket.remotePort,
+            localAddress: socket.localAddress,
+            localPort: socket.localPort
+          });
+
+          if (!settled) {
+            settled = true;
+            callback(null, {
+              connection: socket
+            });
+          }
+        });
+
+        socket.once('timeout', () => {
+          console.error('[SMTP] Connection timed out', {
+            host: SMTP_HOST,
+            port: options.port || SMTP_PORT
+          });
+          socket.destroy(new Error('SMTP connection timed out'));
+        });
+
+        socket.once('error', (error) => {
+          console.error('[SMTP] Connection error', {
+            host: SMTP_HOST,
+            port: options.port || SMTP_PORT,
+            code: error.code,
+            message: error.message
+          });
+
+          if (!settled) {
+            settled = true;
+            callback(error);
+          }
+        });
+
+        socket.once('close', (hadError) => {
+          console.log('[SMTP] Connection closed', {
+            hadError,
+            remoteAddress: socket.remoteAddress,
+            remotePort: socket.remotePort
+          });
+        });
+      } catch (error) {
+        console.error('[SMTP] Failed to prepare IPv4 socket', {
+          host: SMTP_HOST,
+          port: options.port || SMTP_PORT,
+          code: error.code,
+          message: error.message
+        });
+        callback(error);
+      }
     }
   });
 
@@ -113,6 +237,13 @@ async function sendEmailOtp({ uhid, email, name }) {
       ].join('\n')
     });
   } catch (error) {
+    console.error('[SMTP] Failed to send OTP email', {
+      to: email,
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      message: error.message
+    });
     record.otp = null;
     otpStore.set(key, record);
     throw error;
