@@ -1,18 +1,13 @@
 const crypto = require('crypto');
-const dns = require('dns');
-const net = require('net');
-const nodemailer = require('nodemailer');
-
-dns.setDefaultResultOrder('ipv4first');
+const https = require('https');
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 3;
-const SMTP_HOST = 'smtp.gmail.com';
-const SMTP_PORT = 587;
+const RESEND_API_HOST = 'api.resend.com';
+const RESEND_API_PATH = '/emails';
 
 const otpStore = new Map();
-let transporter = null;
 
 function normalizeKey(uhid) {
   return String(uhid || '').trim().toUpperCase();
@@ -26,144 +21,125 @@ function hashOtp(otp, salt) {
   return crypto.createHash('sha256').update(`${salt}:${otp}`).digest('hex');
 }
 
-function getTransporter() {
-  if (transporter) {
-    return transporter;
+function getResendConfig() {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_USER;
+
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is required');
   }
 
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
-  if (!user || !pass) {
-    throw new Error('EMAIL_USER and EMAIL_PASS are required');
+  if (!fromEmail) {
+    throw new Error('RESEND_FROM_EMAIL or EMAIL_USER is required');
   }
 
-  const resolveSmtpHostIpv4 = () =>
-    new Promise((resolve, reject) => {
-      dns.lookup(SMTP_HOST, { family: 4 }, (error, address, family) => {
-        if (error) {
-          console.error('[SMTP] IPv4 DNS lookup failed', {
-            host: SMTP_HOST,
-            code: error.code,
-            message: error.message
-          });
-          reject(error);
-          return;
-        }
+  return { apiKey, fromEmail };
+}
 
-        console.log('[SMTP] Resolved Gmail SMTP over IPv4', {
-          host: SMTP_HOST,
-          address,
-          family
+function sendOtpEmail({ to, otp, name }) {
+  const { apiKey, fromEmail } = getResendConfig();
+  const payload = JSON.stringify({
+    from: fromEmail,
+    to: [to],
+    subject: 'Your NexHealth Pro login OTP',
+    text: [
+      `Hello ${name || 'Patient'},`,
+      '',
+      `Your login OTP is: ${otp}`,
+      'This OTP expires in 5 minutes and can only be used once.',
+      '',
+      'If you did not request this, please ignore this email.'
+    ].join('\n')
+  });
+
+  return new Promise((resolve, reject) => {
+    const request = https.request(
+      {
+        hostname: RESEND_API_HOST,
+        path: RESEND_API_PATH,
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        },
+        timeout: 30000
+      },
+      (response) => {
+        let responseBody = '';
+
+        response.setEncoding('utf8');
+        response.on('data', (chunk) => {
+          responseBody += chunk;
         });
-        resolve(address);
-      });
-    });
 
-  transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: false,
-    auth: {
-      user,
-      pass
-    },
-    family: 4,
-    logger: true,
-    debug: true,
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000,
-    tls: {
-      servername: SMTP_HOST,
-      minVersion: 'TLSv1.2'
-    },
-    getSocket: async (options, callback) => {
-      try {
-        const address = await resolveSmtpHostIpv4();
-        const socket = net.connect({
-          host: address,
-          port: options.port || SMTP_PORT,
-          family: 4
-        });
-        let settled = false;
+        response.on('end', () => {
+          let parsedBody = null;
 
-        socket.setTimeout(options.connectionTimeout || 30000);
+          try {
+            parsedBody = responseBody ? JSON.parse(responseBody) : null;
+          } catch (error) {
+            console.error('[Resend] Failed to parse response body', {
+              statusCode: response.statusCode,
+              message: error.message,
+              responseBody
+            });
+          }
 
-        socket.once('lookup', (error, resolvedAddress, family, host) => {
-          if (error) {
-            console.error('[SMTP] Socket lookup error', {
-              host,
-              code: error.code,
-              message: error.message
+          const logContext = {
+            statusCode: response.statusCode,
+            headers: response.headers,
+            responseBody: parsedBody || responseBody
+          };
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            console.log('[Resend] OTP email sent successfully', {
+              to,
+              emailId: parsedBody && parsedBody.id ? parsedBody.id : null,
+              ...logContext
+            });
+            resolve({
+              ok: true,
+              status: response.statusCode,
+              id: parsedBody && parsedBody.id ? parsedBody.id : null
             });
             return;
           }
 
-          console.log('[SMTP] Socket lookup complete', {
-            host,
-            resolvedAddress,
-            family
+          const error = new Error('Resend API request failed');
+          error.status = response.statusCode;
+          error.responseBody = parsedBody || responseBody;
+
+          console.error('[Resend] OTP email send failed', {
+            to,
+            ...logContext
           });
+          reject(error);
         });
-
-        socket.once('connect', () => {
-          console.log('[SMTP] Connected to Gmail SMTP', {
-            remoteAddress: socket.remoteAddress,
-            remotePort: socket.remotePort,
-            localAddress: socket.localAddress,
-            localPort: socket.localPort
-          });
-
-          if (!settled) {
-            settled = true;
-            callback(null, {
-              connection: socket
-            });
-          }
-        });
-
-        socket.once('timeout', () => {
-          console.error('[SMTP] Connection timed out', {
-            host: SMTP_HOST,
-            port: options.port || SMTP_PORT
-          });
-          socket.destroy(new Error('SMTP connection timed out'));
-        });
-
-        socket.once('error', (error) => {
-          console.error('[SMTP] Connection error', {
-            host: SMTP_HOST,
-            port: options.port || SMTP_PORT,
-            code: error.code,
-            message: error.message
-          });
-
-          if (!settled) {
-            settled = true;
-            callback(error);
-          }
-        });
-
-        socket.once('close', (hadError) => {
-          console.log('[SMTP] Connection closed', {
-            hadError,
-            remoteAddress: socket.remoteAddress,
-            remotePort: socket.remotePort
-          });
-        });
-      } catch (error) {
-        console.error('[SMTP] Failed to prepare IPv4 socket', {
-          host: SMTP_HOST,
-          port: options.port || SMTP_PORT,
-          code: error.code,
-          message: error.message
-        });
-        callback(error);
       }
-    }
-  });
+    );
 
-  return transporter;
+    request.on('timeout', () => {
+      console.error('[Resend] Request timed out', {
+        host: RESEND_API_HOST,
+        path: RESEND_API_PATH,
+        to
+      });
+      request.destroy(new Error('Resend API request timed out'));
+    });
+
+    request.on('error', (error) => {
+      console.error('[Resend] Request error', {
+        to,
+        code: error.code,
+        message: error.message
+      });
+      reject(error);
+    });
+
+    request.write(payload);
+    request.end();
+  });
 }
 
 function pruneRequests(record, now) {
@@ -221,27 +197,26 @@ async function sendEmailOtp({ uhid, email, name }) {
   record.email = email;
   record.name = name || '';
 
-  const mailer = getTransporter();
   try {
-    await mailer.sendMail({
-      from: process.env.EMAIL_USER,
+    const emailResult = await sendOtpEmail({
       to: email,
-      subject: 'Your NexHealth Pro login OTP',
-      text: [
-        `Hello ${name || 'Patient'},`,
-        '',
-        `Your login OTP is: ${otp}`,
-        'This OTP expires in 5 minutes and can only be used once.',
-        '',
-        'If you did not request this, please ignore this email.'
-      ].join('\n')
+      otp,
+      name: name || 'Patient'
     });
+
+    if (!emailResult.ok) {
+      return {
+        ok: false,
+        status: emailResult.status || 502,
+        message: 'Failed to send OTP email'
+      };
+    }
   } catch (error) {
-    console.error('[SMTP] Failed to send OTP email', {
+    console.error('[Resend] Failed to send OTP email', {
       to: email,
-      code: error.code,
-      command: error.command,
-      response: error.response,
+      status: error.status || null,
+      code: error.code || null,
+      responseBody: error.responseBody || null,
       message: error.message
     });
     record.otp = null;
@@ -302,6 +277,7 @@ function verifyEmailOtp({ uhid, otp }) {
 
 module.exports = {
   sendEmailOtp,
+  sendOtpEmail,
   verifyEmailOtp,
   maskEmail
 };
